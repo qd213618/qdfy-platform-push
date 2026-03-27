@@ -18,6 +18,7 @@
       "label_en": "Server URL",
       "type": "string",
       "placeholder": "https://your-server.com",
+      "default": "http://localhost:8765",
       "required": true,
       "hint": "协作平台的服务器地址，例如 https://hospital.example.com:8765"
     },
