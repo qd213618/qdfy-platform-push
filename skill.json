@@ -1,0 +1,110 @@
+{
+  "id": "com.qdfy.platform-push",
+  "name": "青蝶飞云平台推送",
+  "name_en": "QDFY Platform Push",
+  "version": "1.0.0",
+  "description": "接收青蝶飞云协作平台的通知和问卷推送消息，在独立会话中展示",
+  "description_en": "Receive notifications and survey messages from QDFY collaboration platform",
+  "author": "qdfy",
+  "homepage": "https://github.com/qdfy/qdfy-platform-push",
+  "license": "MIT",
+  "min_openclaw_version": "1.0.0",
+
+  "permissions": ["network"],
+
+  "config": {
+    "server_url": {
+      "label": "服务器地址",
+      "label_en": "Server URL",
+      "type": "string",
+      "placeholder": "https://your-server.com",
+      "required": true,
+      "hint": "协作平台的服务器地址，例如 https://hospital.example.com:8765"
+    },
+    "push_token": {
+      "label": "Push Token",
+      "type": "string",
+      "placeholder": "pk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "required": true,
+      "sensitive": true,
+      "hint": "在协作平台 /platform → OpenClaw 推送 → 生成 Push Token 后粘贴此处"
+    },
+    "poll_interval": {
+      "label": "轮询间隔（秒）",
+      "label_en": "Poll Interval (seconds)",
+      "type": "number",
+      "default": 30,
+      "min": 10,
+      "max": 300
+    },
+    "conversation_id": {
+      "label": "推送会话 ID（自动生成，勿手动修改）",
+      "type": "string",
+      "default": "",
+      "advanced": true
+    }
+  },
+
+  "schedules": [
+    {
+      "id": "poll_messages",
+      "label": "轮询消息队列",
+      "interval_config_key": "poll_interval",
+      "action": "poll_and_deliver"
+    }
+  ],
+
+  "actions": {
+    "poll_and_deliver": {
+      "type": "http",
+      "method": "GET",
+      "url": "{{config.server_url}}/api/push/poll",
+      "headers": {
+        "X-Push-Token": "{{config.push_token}}"
+      },
+      "timeout": 15,
+      "on_success": {
+        "condition": "response.count > 0",
+        "handler": "deliver_messages"
+      },
+      "on_error": {
+        "ignore_codes": [401, 429],
+        "log_level": "warn"
+      }
+    },
+
+    "deliver_messages": {
+      "type": "send_to_conversation",
+      "conversation_id_config": "conversation_id",
+      "conversation_title": "📢 协作平台通知",
+      "create_if_missing": true,
+      "messages": "{{response.messages}}",
+      "message_template": {
+        "notification": "📢 **{{message.title}}**\n\n{{message.content}}\n\n[查看详情]({{config.server_url}}{{message.url}})",
+        "survey":       "📋 **{{message.title}}**\n\n{{message.content}}\n\n[前往作答]({{config.server_url}}{{message.url}})",
+        "test":         "✅ **{{message.title}}**\n\n{{message.content}}"
+      }
+    }
+  },
+
+  "setup_guide": {
+    "steps": [
+      {
+        "title": "登录协作平台",
+        "desc": "用浏览器打开协作平台，登录你的账号"
+      },
+      {
+        "title": "生成 Push Token",
+        "desc": "进入 /platform → OpenClaw 推送 → 点击「生成 / 重新生成 Token」，复制 Token"
+      },
+      {
+        "title": "配置 Skill",
+        "desc": "在 OpenClaw Skill 设置中填入：服务器地址 + 上一步复制的 Push Token"
+      },
+      {
+        "title": "验证连通",
+        "desc": "回到平台点击「投入测试消息」，30 秒内应在 OpenClaw 当前会话看到测试消息"
+      }
+    ]
+  }
+}
